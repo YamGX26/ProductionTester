@@ -1,0 +1,7 @@
+{
+    "app_name": "Production Tester",
+    "test_mode": "Development",
+    "logo_path": "assets/logo.png",
+    "com_port": "COM1",
+    "log_path": "./logs"
+}

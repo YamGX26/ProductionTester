@@ -5,20 +5,20 @@ from PySide6.QtWidgets import (
     QPushButton,
     QLineEdit,
     QTextEdit,
-    QTableWidget,
-    QTableWidgetItem,
     QMessageBox,
     QVBoxLayout,
     QHBoxLayout,
-    QGridLayout
+    QGridLayout   
 )
 
 from PySide6.QtCore import QTimer
+from PySide6.QtCore import Qt
 from datetime import datetime
 
 from gui.details_dialog import DetailsDialog
 from gui.settings_dialog import SettingsDialog
 from gui.config_dialog import ConfigDialog
+
 
 class MainWindow(QMainWindow):
 
@@ -28,10 +28,7 @@ class MainWindow(QMainWindow):
 
         self.config = config
 
-        self.setWindowTitle(
-            config["app_name"]
-        )
-
+        self.setWindowTitle(config["app_name"])
         self.resize(1200, 800)
 
         self.operator_id = ""
@@ -40,108 +37,210 @@ class MainWindow(QMainWindow):
 
         self.build_ui()
         self.start_clock()
+        self.apply_theme()
 
-def start_clock(self):
+    # ---------------- UI ----------------
+    def build_ui(self):
 
-    self.timer = QTimer()
+        central = QWidget()
+        self.setCentralWidget(central)
 
-    self.timer.timeout.connect(
-        self.update_datetime
-    )
+        grid = QGridLayout()
 
-    self.timer.start(1000)
+    # ================= HEADER =================
+        self.date_label = QLabel("Date:")
+        self.time_label = QLabel("Time:")
+        self.mode_label = QLabel(f"Test Mode: {self.config['test_mode']}")
 
-    self.update_datetime()
+        header = QHBoxLayout()
+        header.addWidget(QLabel("LOGO"))
+        header.addWidget(QLabel(self.config["app_name"]))
+        header.addStretch()
+        header.addWidget(self.date_label)
+        header.addWidget(self.time_label)
+        header.addWidget(self.mode_label)
 
+        grid.addLayout(header, 0, 0, 1, 2)
 
-def update_datetime(self):
+    # ================= OPERATOR =================
+        self.id_value = QLabel("")
+        self.shift_value = QLabel("")
+        self.model_value = QLabel("")
+        self.serial_edit = QLineEdit()
 
-    now = datetime.now()
+        op_layout = QVBoxLayout()
+        op_layout.addWidget(QLabel("ID"))
+        op_layout.addWidget(self.id_value)
+        op_layout.addWidget(QLabel("Shift"))
+        op_layout.addWidget(self.shift_value)
+        op_layout.addWidget(QLabel("Model"))
+        op_layout.addWidget(self.model_value)
+        op_layout.addWidget(QLabel("Serial"))
+        op_layout.addWidget(self.serial_edit)
 
-    self.date_label.setText(
-        f"Date: {now:%Y-%m-%d}"
-    )
+        grid.addLayout(op_layout, 1, 0)
 
-    self.time_label.setText(
-        f"Time: {now:%I:%M:%S %p}"
-    )
+    # ================= CONTROL PANEL =================
+        control_layout = QVBoxLayout()
 
-def log(self, message):
+        start_btn = QPushButton("Start")
+        details_btn = QPushButton("Details")
+        settings_btn = QPushButton("Settings")
+        config_btn = QPushButton("Config")
+        exit_btn = QPushButton("Exit")
 
-    timestamp = datetime.now().strftime(
-        "%H:%M:%S"
-    )
+        start_btn.clicked.connect(self.start_test)
+        details_btn.clicked.connect(self.open_details)
+        settings_btn.clicked.connect(self.open_settings)
+        config_btn.clicked.connect(self.open_config)
+        exit_btn.clicked.connect(self.close)
 
-    self.console.append(
-        f"{timestamp} INFO {message}"
-    )
+        control_layout.addWidget(start_btn)
+        control_layout.addWidget(details_btn)
+        control_layout.addWidget(settings_btn)
+        control_layout.addWidget(config_btn)
+        control_layout.addWidget(exit_btn)
 
-def start_test(self):
+        grid.addLayout(control_layout, 2, 0)
 
-    serial = self.serial_edit.text().strip()
+    # ================= TEST RESULT AREA =================
+        self.result_label = QLabel("")
+        self.result_label.setStyleSheet("font-size: 48px; font-weight: bold;")
+        self.result_label.setAlignment(Qt.AlignCenter)
 
-    if not all([
-        self.operator_id,
-        self.shift,
-        self.model,
-        serial
-    ]):
-        QMessageBox.warning(
-            self,
-            "Missing Data",
-            "Complete all details."
+        grid.addWidget(self.result_label, 1, 1)
+
+    # ================= CONSOLE =================
+        self.console = QTextEdit()
+        self.console.setReadOnly(True)
+        self.console.setStyleSheet("""
+            background-color: #0f0f0f;
+            color: #00ff88;
+            font-family: Consolas;
+            font-size: 11px;
+        """)
+
+        grid.addWidget(self.console, 2, 1)
+
+        central.setLayout(grid)
+
+    # ---------------- CLOCK ----------------
+    def start_clock(self):
+
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update_datetime)
+        self.timer.start(1000)
+        self.update_datetime()
+
+    def update_datetime(self):
+
+        now = datetime.now()
+
+        self.date_label.setText(f"Date: {now:%Y-%m-%d}")
+        self.time_label.setText(f"Time: {now:%I:%M:%S %p}")
+
+    # ---------------- LOG ----------------
+    def log(self, message):
+
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        self.console.append(f"{timestamp} INFO {message}")
+
+    # ---------------- TEST ----------------
+    def start_test(self):
+
+        serial = self.serial_edit.text().strip()
+
+        if not all([self.operator_id, self.shift, self.model, serial]):
+            QMessageBox.warning(self, "Missing Data", "Complete all details.")
+            return
+
+        self.result_label.setText("PASS")
+        self.result_label.setStyleSheet(
+            "color: #00ff88; font-size: 48px; font-weight: bold;"
         )
-        return
 
-    self.result_label.setText("PASS")
+        self.log("Test Started")
+        self.log("PASS")
 
-    self.log("Test Started")
-    self.log("PASS")
+        self.serial_edit.clear()
+        self.serial_edit.setFocus()
 
-    self.serial_edit.clear()
-    self.serial_edit.setFocus()
+    # ---------------- DETAILS ----------------
+    def open_details(self):
 
-def open_details(self):
+        dlg = DetailsDialog(self)
 
-    dlg = DetailsDialog(self)
+        if dlg.exec():
 
-    if dlg.exec():
+            self.operator_id = dlg.id_edit.text()
+            self.shift = dlg.shift_edit.text()
+            self.model = dlg.model_edit.text()
 
-        self.operator_id = dlg.id_edit.text()
-        self.shift = dlg.shift_edit.text()
-        self.model = dlg.model_edit.text()
+            self.id_value.setText(self.operator_id)
+            self.shift_value.setText(self.shift)
+            self.model_value.setText(self.model)
 
-        self.id_value.setText(
-            self.operator_id
-        )
+            self.log("Details Updated")
 
-        self.shift_value.setText(
-            self.shift
-        )
+    # ---------------- SETTINGS ----------------
+    def open_settings(self):
 
-        self.model_value.setText(
-            self.model
-        )
+        dlg = SettingsDialog(self.config["test_mode"])
 
-        self.log("Details Updated")
+        if dlg.exec():
 
-def open_settings(self):
+            mode = dlg.selected_mode()
 
-    dlg = SettingsDialog(
-        self.config["test_mode"]
-    )
+            self.config["test_mode"] = mode
+            self.mode_label.setText(f"Test Mode: {mode}")
 
-    if dlg.exec():
+            self.log(f"Mode Changed: {mode}")
 
-        mode = dlg.selected_mode()
+    # ---------------- CONFIG ----------------
+    def open_config(self):
 
-        self.config["test_mode"] = mode
+        dlg = ConfigDialog()
+        dlg.exec()
 
-        self.mode_label.setText(
-            f"Test Mode: {mode}"
-        )
 
-        self.log(
-            f"Mode Changed: {mode}"
-        )
+    def apply_theme(self):
 
+        self.setStyleSheet("""
+            QMainWindow {
+                background-color: #1e1e1e;
+            }
+
+            QLabel {
+                color: #dcdcdc;
+                font-size: 12px;
+            }
+
+            QPushButton {
+                background-color: #2d2d2d;
+                color: white;
+                padding: 6px;
+                border: 1px solid #444;
+                border-radius: 4px;
+            }
+
+            QPushButton:hover {
+                background-color: #3a3a3a;
+            }
+
+            QPushButton:pressed {
+                background-color: #555;
+            }
+
+            QLineEdit {
+                background-color: #2b2b2b;
+                color: white;
+                border: 1px solid #444;
+                padding: 4px;
+            }
+
+            QTextEdit {
+                background-color: #121212;
+                color: #00ff88;
+                border: 1px solid #333;
+            }
+        """)    
